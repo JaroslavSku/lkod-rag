@@ -1,7 +1,5 @@
 {
-  // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
-    "rootDir": "./src",
     "outDir": "./dist",
     "module": "nodenext",
     "target": "esnext",
@@ -12,9 +10,12 @@
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
     "strict": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "isolatedModules": true,
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true
-  }
+  },
+  "include": ["./src/**/*.ts", "./test/**/*.ts"]
 }

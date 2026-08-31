@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: lkod-rag
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d lkod-rag"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrator:
+    build:
+      context: .
+      target: migrator
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/lkod-rag
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      target: runner
+    ports:
+      - "3012:3012"
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/lkod-rag
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      CHAT_MODEL: qwen2.5:7b
+      EMBEDDING_MODEL: bge-m3
+      CHATBOT_CONTEXT_FILE: config/lkod-context.md
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+
+volumes:
+  postgres-data:

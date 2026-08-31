@@ -3,15 +3,22 @@ import { PostgresConnector } from "../../data-access/PostgresConnector";
 import { readFileSync } from "node:fs";
 import { OllamaClient } from "../../data-access/llama/OllamaClient";
 import pgvector from "pgvector/pg";
+import { inject, injectable } from "tsyringe";
+import type { IAppConfig } from "../../config/AppConfig";
+import { AppToken } from "../../ioc/AppToken";
 
+@injectable()
 export class CreateContextService {
   constructor(
-    private dbClient: PostgresConnector,
-    private ollamaClient: OllamaClient,
+    @inject(AppToken.PostgresConnector)
+    private readonly dbClient: PostgresConnector,
+    @inject(AppToken.OllamaClient)
+    private readonly ollamaClient: OllamaClient,
+    @inject(AppToken.AppConfig) private readonly config: IAppConfig,
   ) {}
 
   public async saveToDb() {
-    const fileName = `${process.cwd()}\\${process.env.CHATBOT_CONTEXT_FILE}`;
+    const fileName = path.resolve(process.cwd(), this.config.contextFile);
     const md = readFileSync(fileName, { encoding: "utf-8" });
     const sections = md.split(/^## /m);
 
@@ -24,7 +31,7 @@ export class CreateContextService {
       if (!section.trim()) continue;
       const lines = section.split("\n");
       const title = lines.shift();
-      const content = lines.join();
+      const content = lines.join("\n");
 
       const embedding = await this.ollamaClient.getOneEmbedding(content);
 

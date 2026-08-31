@@ -1,25 +1,41 @@
-import { Client, Pool } from "pg";
+import { Pool } from "pg";
 import pgvector from "pgvector/pg";
+import { inject, injectable } from "tsyringe";
+import type { IAppConfig } from "../config/AppConfig";
+import { AppToken } from "../ioc/AppToken";
+
+@injectable()
 export class PostgresConnector {
-  private postgresConnector: Pool;
-  constructor() {
-    this.postgresConnector = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      max: 10,
-      idleTimeoutMillis: 50_000,
-      connectionTimeoutMillis: 3_000,
+  private readonly pool: Pool;
+
+  constructor(@inject(AppToken.AppConfig) private readonly config: IAppConfig) {
+    this.pool = new Pool({
+      connectionString: this.config.databaseUrl,
+      application_name: this.config.appName,
+      max: this.config.postgresPoolMaxConnections,
+      idleTimeoutMillis: this.config.postgresIdleTimeoutMs,
+      connectionTimeoutMillis: this.config.postgresConnectionTimeoutMs,
     });
 
-    this.postgresConnector.on("connect", (client) => {
+    this.pool.on("connect", (client) => {
       pgvector.registerTypes(client);
     });
   }
 
-  public async connect() {
-    await this.postgresConnector.connect();
+  public async connect(): Promise<void> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("SELECT 1");
+    } finally {
+      client.release();
+    }
   }
 
-  public async getConnection() {
-    return this.postgresConnector;
+  public async disconnect(): Promise<void> {
+    await this.pool.end();
+  }
+
+  public async getConnection(): Promise<Pool> {
+    return this.pool;
   }
 }

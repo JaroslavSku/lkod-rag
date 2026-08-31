@@ -1,20 +1,33 @@
-import { text } from "body-parser";
-import { ChatMessage } from "../../application/services/QueryService";
-interface OllamaChatResponse {
+import { inject, injectable } from "tsyringe";
+import type { IAppConfig } from "../../config/AppConfig";
+import { AppToken } from "../../ioc/AppToken";
+
+export interface ChatMessage {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+
+interface IOllamaChatResponse {
   message: { role: string; content: string };
 }
 
-interface OllamaEmbeddings {
+interface IOllamaEmbeddingsResponse {
   embeddings: number[][];
 }
+
+@injectable()
 export class OllamaClient {
-  public async generateChatReseponse(messages: ChatMessage[]) {
-    const response = await fetch(`${process.env.OLLAMA_BASE_URL}/api/chat`, {
+  constructor(
+    @inject(AppToken.AppConfig) private readonly config: IAppConfig,
+  ) {}
+
+  public async generateChatResponse(messages: ChatMessage[]): Promise<string> {
+    const response = await fetch(`${this.config.ollamaBaseUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: process.env.CHAT_MODEL,
-        messages: messages,
+        model: this.config.chatModel,
+        messages,
         stream: false,
         options: { temperature: 0 },
       }),
@@ -23,21 +36,21 @@ export class OllamaClient {
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(
-        `Generování selhalo (HTTP ${response.status}): ${errorText}. ` +
-          `Je stažený model ${process.env.CHAT_MODEL}?`,
+        `Ollama chat request failed (HTTP ${response.status}): ${errorText}. ` +
+          `Is the model ${this.config.chatModel} pulled?`,
       );
     }
 
-    const responseBody = (await response.json()) as OllamaChatResponse;
+    const responseBody = (await response.json()) as IOllamaChatResponse;
     return responseBody.message.content;
   }
 
-  public async createEmbeddings(texts: any[]) {
-    const response = await fetch(`${process.env.OLLAMA_BASE_URL}/api/embed`, {
+  public async createEmbeddings(texts: string[]): Promise<number[][]> {
+    const response = await fetch(`${this.config.ollamaBaseUrl}/api/embed`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: process.env.EMBEDDING_MODEL,
+        model: this.config.embeddingModel,
         input: texts,
       }),
     });
@@ -45,19 +58,19 @@ export class OllamaClient {
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(
-        `Generování selhalo (HTTP ${response.status}): ${errorText}. ` +
-          `Je stažený model ${process.env.CHAT_MODEL}?`,
+        `Ollama embedding request failed (HTTP ${response.status}): ${errorText}. ` +
+          `Is the model ${this.config.embeddingModel} pulled?`,
       );
     }
 
-    const responseBody = (await response.json()) as OllamaEmbeddings;
+    const responseBody = (await response.json()) as IOllamaEmbeddingsResponse;
     return responseBody.embeddings;
   }
 
   public async getOneEmbedding(text: string): Promise<number[]> {
     const [embedding] = await this.createEmbeddings([text]);
     if (!embedding) {
-      throw new Error("Ollama nevrátila embedding.");
+      throw new Error("Ollama returned no embedding.");
     }
     return embedding;
   }
