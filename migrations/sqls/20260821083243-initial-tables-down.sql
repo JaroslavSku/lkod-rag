@@ -1,0 +1,5 @@
+/* Replace with your SQL commands */
+DROP TABLE IF EXISTS lkod_search_vectors;
+DROP TEXT SEARCH CONFIGURATION IF EXISTS czech;
+DROP TEXT SEARCH DICTIONARY IF EXISTS czech_simple;
+DROP EXTENSION IF EXISTS unaccent;

@@ -1,0 +1,22 @@
+{
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.2.0",
+    "@types/pg": "^8.23.1",
+    "prettier": "^3.9.6",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2"
+  },
+  "scripts": {
+    "dev-start": "tsx watch --env-file=.env src/index.ts",
+    "migrate-db": "node node_modules/db-migrate/bin/db-migrate up"
+  },
+  "dependencies": {
+    "body-parser": "^2.3.0",
+    "db-migrate": "^0.11.14",
+    "db-migrate-pg": "^1.5.2",
+    "express": "^5.2.1",
+    "pg": "^8.23.0",
+    "pgvector": "^0.3.0"
+  }
+}
