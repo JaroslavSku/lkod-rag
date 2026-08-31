@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [master, development]
+  pull_request:
+    branches: [master, development]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+
+      - run: npm audit --omit dev --audit-level high
+
+      - run: npm run format:check
+
+      - run: npm run typecheck
+
+      - run: npm run test:only
+
+  migrations:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lkod-rag-ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+
+      - name: Install czech stopwords required by the initial migration
+        run: |
+          STOPWORDS_DIR=$(docker exec "${{ job.services.postgres.id }}" pg_config --sharedir)/tsearch_data
+          docker exec "${{ job.services.postgres.id }}" sh -c "printf 'a\ni\nk\no\nse\nv\nz\nje\nna\nco\n' > $STOPWORDS_DIR/czech.stop"
+
+      - run: npm run migrate-db
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/lkod-rag-ci
+
+  docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: lkod-rag:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
